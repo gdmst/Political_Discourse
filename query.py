@@ -5,19 +5,62 @@ import csv
 from configparser import ConfigParser
 from random import randint
 import asyncio
+import argparse
+import calendar
+import json
+
+# Create the argument parser
+parser = argparse.ArgumentParser(description="Process date value")
+parser.add_argument('--start_day', type=int, help='Start date for query')
+parser.add_argument('--start_month', type=int, help='Start month for query')
+
+# read 
+
+# Parse the arguments
+args = parser.parse_args()
+
+# Access the retstart argument
+print(f"Running script with start_day={args.start_day} , start_month = {args.start_month}")
+start_day=int(args.start_day)
+start_month=int(args.start_month)
+
+last_day = [31, 28, 31, 30, 31, 30]
+
+end_day = ( start_day) % last_day[start_month-1] +1
+end_month = start_month
+
+if end_day == 1:
+    end_month += 1
+
+date_arg_end = str(end_day).zfill(2)
+date_arg_start = str(start_day).zfill(2)
+
+month_arg_str = str(start_month).zfill(2)
+month_arg_end = str(end_month).zfill(2)
+
+start_date = '2025-'+month_arg_str+'-'+str(date_arg_start)
+end_date = '2025-'+month_arg_end+'-'+str(date_arg_end)
+
+print('start - end ', start_date, end_date)
+# start_date = '2025-01-01'
+# end_date = '2025-05-31'
+
+#FlagstaffFire (bounding_box:[-105.301758 39.964069 -105.178505 40.09455] OR place:Boulder)
+
+MINIMUM_TWEETS = 100000
+
+# meales lang:en until:2025-06-04 since:2025-01-01
+QUERY = 'measles lang:en until:'+end_date+' since:'+start_date
+
+# to: @satyakumar_y filter:replies since:2025-01-01 until:2025-02-01 lang:en
+
+# QUERY = 'measles lang:en retweets_of_status_id:1936268716074807379'
+
+# QUERY = '#FlagstaffFire (bounding_box:[-105.301758 39.964069 -105.178505 40.09455] OR place:Boulder) AND (since:2022-01-01 until:2025-06-09)'
+# QUERY = '(from:beatrice_ujan)'
 
 
-MINIMUM_TWEETS = 1000
-# QUERY = '( #VoteBlue OR #VoteTheBlutToStopTheStupid OR #NeverTrump OR #TrumpIsNotFitForOffice OR #TrumpIsALaughingStock OR #TrumpisaNationalDisgrace OR #TrumpIsNotWell OR #savedemocracy OR #BidenHarris2024) lang:en '
-# QUERY = '(#VoteRed OR #NeverKalama OR #DrunkKamala OR #TrumpPence2024 OR #TRUMP2024ToSaveAmerica OR #TooBigToRig OR #Maga OR #VoteMaga OR #StopTheSteal) lang:en '
-# QUERY = ' ( #FDT) lang:en '
-QUERY = ' ( #FDT) lang:en until:2024-11-01 since:2024-10-01' #UnhingedKamala
-
-#Democrat --> #VoteBlue, #FDT, #NeverTrump
-
-#cheating #TrumpCheated #TrumpIsAGlobalLaughingStock #TrumpIsAnExistentialThreat #TrumpIsACoward #trumpisinsane #TrumpIsALiarandACriminal #impeachhim #UnfitForOffice #NeverTrump #recountthevotes #RecountEveryVote #RecountNow #WeDemandARecount"
-
-
+#  texas boudling box (bounding_box:[-106.64719063660635 25.840437651866516 -93.5175532104321 36.50050935248352])
 async def get_tweets(tweets):
     if tweets is None:
         #* get tweets
@@ -41,7 +84,8 @@ async def get_tweets(tweets):
 # password = config['X']['password']
 
 #* create a csv file
-with open('tweets_democrat_FDT_20241101_20241001.csv', 'w', newline='') as file:
+dataset_filename = "results/measles/dataset/measles_"+start_date+"-"+end_date+".csv"
+with open(dataset_filename, 'w', newline='') as file:
     writer = csv.writer(file)
     writer.writerow(['Tweet_count', 'Username', 'Text', 'Created At', 'Retweets', 'Likes'])
 
@@ -84,10 +128,20 @@ async def main_function():
             break
 
         for tweet in tweets:
+            # print(type(tweet))
+            # break
             tweet_count += 1
             tweet_data = [tweet_count, tweet.user.name, tweet.text, tweet.created_at, tweet.retweet_count, tweet.favorite_count]
+               # Open a file in write mode ('w') and create it if it doesn't exist
+                
+            article_filename = "results/measles/tweets/tweet_"+start_date+"-"+end_date+"_"+str(tweet_count) + ".json"
+            with open(article_filename, "w") as file:
+                file.write(str(vars(tweet)))
 
-            with open('tweets_democrat_FDT_20241101_20241001.csv', 'a', newline='') as file:
+                # json.dump(vars(tweet), file)
+
+            dataset_filename = "results/measles/dataset/measles_"+start_date+"-"+end_date+".csv"
+            with open(dataset_filename, 'a', newline='') as file:
                 writer = csv.writer(file)
                 writer.writerow(tweet_data)
 
