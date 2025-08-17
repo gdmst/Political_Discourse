@@ -14,6 +14,7 @@ import pandas as pd
 parser = argparse.ArgumentParser(description="Process date value")
 parser.add_argument('--start_day', type=int, help='Start date for query')
 parser.add_argument('--start_month', type=int, help='Start month for query')
+parser.add_argument('--position', type=int, help='Start position for query')
 
 # read 
 
@@ -24,7 +25,7 @@ args = parser.parse_args()
 print(f"Running script with start_day={args.start_day} , start_month = {args.start_month}")
 start_day=int(args.start_day)
 start_month=int(args.start_month)
-
+position=int(args.position)
 last_day = [31, 28, 31, 30, 31, 30]
 
 end_day = ( start_day) % last_day[start_month-1] +1
@@ -100,9 +101,9 @@ async def get_tweets(tweets, QUERY):
 
 #* create a csv file
 
-async def retrieve_all_replies(username):
+async def retrieve_all_replies(username, tweet_id, formatted_date):
 
-    dataset_filename = "results/measles/replies/replies_"+username+".csv"
+    dataset_filename =dataset_filename = "results/measles/dataset/replies_"+username+"_"+tweet_id+".csv"
     with open(dataset_filename, 'w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(['Source_user', 'Tweet_count', 'Username', 'Tweet_id','In_reply_to', 'Created At', 'Retweets', 'Likes'])
@@ -141,16 +142,16 @@ async def retrieve_all_replies(username):
             # print(type(tweet))
             # break
             tweet_count += 1
-            tweet_data = [username, tweet_count, tweet.user.name, tweet.id, tweet.in_reply_to, tweet.created_at, tweet.retweet_count, tweet.favorite_count]
+            tweet_data = [username, tweet_count, tweet.user.screen_name, tweet.id, tweet.in_reply_to, tweet.created_at, tweet.retweet_count, tweet.favorite_count]
                # Open a file in write mode ('w') and create it if it doesn't exist
                 
-            article_filename = "results/measles/replies/replies_"+username+"_"+tweet_count+".json"
-            with open(article_filename, "w") as file:
-                file.write(str(vars(tweet)))
+            # article_filename = "results/measles/replies/replies_"+username+"_"+tweet_count+".json"
+            # with open(article_filename, "w") as file:
+            #     file.write(str(vars(tweet)))
 
                 # json.dump(vars(tweet), file)
 
-            dataset_filename = "results/measles/dataset/replies_"+username+".csv"
+            dataset_filename = "results/measles/dataset/replies_"+username+"_"+tweet_id+".csv"
             with open(dataset_filename, 'a', newline='') as file:
                 writer = csv.writer(file)
                 writer.writerow(tweet_data)
@@ -161,8 +162,10 @@ async def retrieve_all_replies(username):
     print(f'{datetime.now()} - Done! Got {tweet_count} tweets found')
 
 
-for i in range(0,702):
-    username = df.loc[i, 'username']
 
-    asyncio.run(retrieve_all_replies(username))
+username = df.loc[position, 'username']
+tweet_id = df.loc[position, 'tweet_id']
+formatted_date = df.loc[position, 'formatted_date']
+
+asyncio.run(retrieve_all_replies(username, tweet_id, formatted_date))
     
