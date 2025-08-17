@@ -8,6 +8,7 @@ import asyncio
 import argparse
 import calendar
 import json
+import pandas as pd
 
 # Create the argument parser
 parser = argparse.ArgumentParser(description="Process date value")
@@ -49,9 +50,23 @@ print('start - end ', start_date, end_date)
 
 MINIMUM_TWEETS = 100000
 
-# meales lang:en until:2025-06-04 since:2025-01-01
-QUERY = 'measles lang:en until:'+end_date+' since:'+start_date
+#* authenticate to X.com
+#! 1) use the login credentials. 2) use cookies.
+client = Client(language='en-US', user_agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:132.0) Gecko/20100101 Firefox/132.0')
+# client.login(auth_info_1=username, auth_info_2=email, password=password)
+# client.save_cookies('cookies.json')
 
+client.load_cookies('cookies.json')
+
+# meales lang:en until:2025-06-04 since:2025-01-01
+# QUERY = 'measles lang:en until:'+end_date+' since:'+start_date
+
+# for user in 
+# todo: read file and read source users, to retrieve replies by users only in January 2025
+
+df = pd.read_csv(dir+'Replied_tweets.csv', dtype={'tweet_id': str})
+
+# QUERY = 'to:@'+username+' filter:replies lang:en until:'+end_date+' since:'+start_date
 # to: @satyakumar_y filter:replies since:2025-01-01 until:2025-02-01 lang:en
 
 # QUERY = 'measles lang:en retweets_of_status_id:1936268716074807379'
@@ -61,7 +76,7 @@ QUERY = 'measles lang:en until:'+end_date+' since:'+start_date
 
 
 #  texas boudling box (bounding_box:[-106.64719063660635 25.840437651866516 -93.5175532104321 36.50050935248352])
-async def get_tweets(tweets):
+async def get_tweets(tweets, QUERY):
     if tweets is None:
         #* get tweets
         print(f'{datetime.now()} - Getting tweets...')
@@ -84,22 +99,17 @@ async def get_tweets(tweets):
 # password = config['X']['password']
 
 #* create a csv file
-dataset_filename = "results/measles/dataset/measles_"+start_date+"-"+end_date+".csv"
-with open(dataset_filename, 'w', newline='') as file:
-    writer = csv.writer(file)
-    writer.writerow(['Tweet_count', 'Username', 'Text', 'Created At', 'Retweets', 'Likes'])
+
+async def retrieve_all_replies(username):
+
+    dataset_filename = "results/measles/replies/replies_"+username+".csv"
+    with open(dataset_filename, 'w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(['Source_user', 'Tweet_count', 'Username', 'Tweet_id','In_reply_to', 'Created At', 'Retweets', 'Likes'])
 
 
 
-#* authenticate to X.com
-#! 1) use the login credentials. 2) use cookies.
-client = Client(language='en-US', user_agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:132.0) Gecko/20100101 Firefox/132.0')
-# client.login(auth_info_1=username, auth_info_2=email, password=password)
-# client.save_cookies('cookies.json')
-
-client.load_cookies('cookies.json')
-
-async def main_function():
+    QUERY = 'to:@'+username+' filter:replies lang:en until:'+end_date+' since:'+start_date
 
     tweet_count = 0
     tweets = None
@@ -107,15 +117,15 @@ async def main_function():
 
         try:
             # tweets = asyncio.run(get_tweets(tweets))
-                if tweets is None:
-                #* get tweets
-                    print(f'{datetime.now()} - Getting tweets...')
-                    tweets = await client.search_tweet(QUERY, product='Latest')
-                else:
-                    wait_time = randint(5, 10)
-                    print(f'{datetime.now()} - Getting next tweets after {wait_time} seconds ...')
-                    time.sleep(wait_time)
-                    tweets = await tweets.next()
+            if tweets is None:
+            #* get tweets
+                print(f'{datetime.now()} - Getting tweets...')
+                tweets = await client.search_tweet(QUERY, product='Latest')
+            else:
+                wait_time = randint(5, 10)
+                print(f'{datetime.now()} - Getting next tweets after {wait_time} seconds ...')
+                time.sleep(wait_time)
+                tweets = await tweets.next()
         except TooManyRequests as e:
             rate_limit_reset = datetime.fromtimestamp(e.rate_limit_reset)
             print(f'{datetime.now()} - Rate limit reached. Waiting until {rate_limit_reset}')
@@ -131,16 +141,16 @@ async def main_function():
             # print(type(tweet))
             # break
             tweet_count += 1
-            tweet_data = [tweet_count, tweet.user.name, tweet.text, tweet.created_at, tweet.retweet_count, tweet.favorite_count]
+            tweet_data = [username, tweet_count, tweet.user.name, tweet.id, tweet.in_reply_to, tweet.created_at, tweet.retweet_count, tweet.favorite_count]
                # Open a file in write mode ('w') and create it if it doesn't exist
                 
-            article_filename = "results/measles/tweets/tweet_"+start_date+"-"+end_date+"_"+str(tweet_count) + ".json"
+            article_filename = "results/measles/replies/replies_"+username+"_"+tweet_count+".json"
             with open(article_filename, "w") as file:
                 file.write(str(vars(tweet)))
 
                 # json.dump(vars(tweet), file)
 
-            dataset_filename = "results/measles/dataset/measles_"+start_date+"-"+end_date+".csv"
+            dataset_filename = "results/measles/dataset/replies_"+username+".csv"
             with open(dataset_filename, 'a', newline='') as file:
                 writer = csv.writer(file)
                 writer.writerow(tweet_data)
@@ -150,4 +160,9 @@ async def main_function():
 
     print(f'{datetime.now()} - Done! Got {tweet_count} tweets found')
 
-asyncio.run(main_function())
+
+for i in range(0,702):
+    username = df.loc[i, 'username']
+
+    asyncio.run(retrieve_all_replies(username))
+    
