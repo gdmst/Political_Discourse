@@ -1,4 +1,4 @@
-from twikit import Client, TooManyRequests
+from twikit import Client, TooManyRequests, NotFound
 import time
 from datetime import datetime
 import csv
@@ -40,10 +40,10 @@ date_arg_start = str(start_day).zfill(2)
 month_arg_str = str(start_month).zfill(2)
 month_arg_end = str(end_month).zfill(2)
 
-start_date = '2025-'+month_arg_str+'-'+str(date_arg_start)
-end_date = '2025-'+month_arg_end+'-'+str(date_arg_end)
+# start_date = '2025-'+month_arg_str+'-'+str(date_arg_start)
+# end_date = '2025-'+month_arg_end+'-'+str(date_arg_end)
 
-print('start - end ', start_date, end_date)
+# print('start - end ', start_date, end_date)
 # start_date = '2025-01-01'
 # end_date = '2025-05-31'
 
@@ -65,7 +65,7 @@ client.load_cookies('cookies.json')
 # for user in 
 # todo: read file and read source users, to retrieve replies by users only in January 2025
 
-df = pd.read_csv(dir+'Replied_tweets.csv', dtype={'tweet_id': str})
+df = pd.read_csv('Replied_tweets_cleaned.csv', dtype={'tweet_id': str})
 
 # QUERY = 'to:@'+username+' filter:replies lang:en until:'+end_date+' since:'+start_date
 # to: @satyakumar_y filter:replies since:2025-01-01 until:2025-02-01 lang:en
@@ -103,15 +103,14 @@ async def get_tweets(tweets, QUERY):
 
 async def retrieve_all_replies(username, tweet_id, formatted_date):
 
-    dataset_filename =dataset_filename = "results/measles/dataset/replies_"+username+"_"+tweet_id+".csv"
+    dataset_filename =dataset_filename = "results/measles/replies/replies_"+str(position)+"_"+username+".csv"
     with open(dataset_filename, 'w', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow(['Source_user', 'Tweet_count', 'Username', 'Tweet_id','In_reply_to', 'Created At', 'Retweets', 'Likes'])
+        writer.writerow(['Source_user', 'Tweet_count', 'Username', 'Tweet_id','Text', 'In_reply_to', 'Created At', 'Retweets', 'Likes'])
 
+    QUERY = 'to:@'+username+' filter:replies lang:en until:2025-02-01 since:'+formatted_date
 
-
-    QUERY = 'to:@'+username+' filter:replies lang:en until:'+end_date+' since:'+start_date
-
+    print(QUERY)
     tweet_count = 0
     tweets = None
     while tweet_count < MINIMUM_TWEETS:
@@ -133,6 +132,11 @@ async def retrieve_all_replies(username, tweet_id, formatted_date):
             wait_time = rate_limit_reset - datetime.now()
             time.sleep(wait_time.total_seconds())
             continue
+        except NotFound as e:
+            print(f'data not found. waiting 3 minutes ...')
+            time.sleep(180)
+            with open('replies_failed.log', "a") as f:   # "a" = append mode
+                f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] data not found\n{username} at {position}")
 
         if not tweets:
             print(f'{datetime.now()} - No more tweets found')
@@ -142,16 +146,14 @@ async def retrieve_all_replies(username, tweet_id, formatted_date):
             # print(type(tweet))
             # break
             tweet_count += 1
-            tweet_data = [username, tweet_count, tweet.user.screen_name, tweet.id, tweet.in_reply_to, tweet.created_at, tweet.retweet_count, tweet.favorite_count]
+            tweet_data = [username, tweet_count, tweet.user.screen_name, tweet.id,tweet.text, tweet.in_reply_to, tweet.created_at, tweet.retweet_count, tweet.favorite_count]
                # Open a file in write mode ('w') and create it if it doesn't exist
                 
-            # article_filename = "results/measles/replies/replies_"+username+"_"+tweet_count+".json"
-            # with open(article_filename, "w") as file:
-            #     file.write(str(vars(tweet)))
+            article_filename = "results/measles/replies/json/replies_"+username+"_"+str(tweet_count)+".json"
+            with open(article_filename, "w") as file:
+                file.write(str(vars(tweet)))
 
-                # json.dump(vars(tweet), file)
-
-            dataset_filename = "results/measles/dataset/replies_"+username+"_"+tweet_id+".csv"
+            dataset_filename = "results/measles/replies/replies_"+str(position)+"_"+username+".csv"
             with open(dataset_filename, 'a', newline='') as file:
                 writer = csv.writer(file)
                 writer.writerow(tweet_data)
